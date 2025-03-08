@@ -100,15 +100,14 @@ async def process_endpoint(request: Request,
                            project_id: str, 
                            process_request: ProcessRequest):
 
-    # the request bodey with be json that has the same paramter defined in the  ProcessRequest class
-    file_id = process_request.file_id
+    # the request body with be json that has the same paramter defined in the  ProcessRequest class
     chunk_size = process_request.chunk_size
     overlap_size = process_request.overlap_size
     do_reset = process_request.do_reset
 
-    # create project object
-    project_model = ProjectModel(
-        db_client=request.app.db_client   # request: has app object so we could retrive app paramters 
+    # create project object (pointing on project collection)
+    project_model = await ProjectModel.create_instance(
+        db_client=request.app.db_client # request: has app object so we could retrive app paramters 
     )
 
     # insert project in db or retiver it
@@ -116,56 +115,131 @@ async def process_endpoint(request: Request,
         project_id=project_id
     )
 
-    # start processing the file
-    process_controller = ProcessController(project_id=project_id)
+    # we need the files that need processing
+    # there are 2 options for processing:
+    # 1. give me file name in the json file using paramter file_id
+    # 2. use project id to retrive all files/assets related to and process them
 
-    # get file content
-    file_content = process_controller.get_file_content(file_id=file_id)
 
-    # process the file (spilt to chunks)
-    file_chunks = process_controller.process_file_content(
-        file_content=file_content,
-        file_id=file_id,
-        chunk_size=chunk_size,
-        overlap_size=overlap_size
-    )
 
-    # in case the chunking process is faild
-    if file_chunks is None or len(file_chunks) == 0:
+    asset_model = await AssetModel.create_instance(
+            db_client=request.app.db_client
+        )
+
+    project_files_ids = {}
+
+    # 1. give me file name in the json file using paramter file_id
+    if process_request.file_id:
+
+        # try to search for this file in the assets
+        asset_record = await asset_model.get_asset_record(
+            asset_project_id=project.id,
+            asset_name=process_request.file_id
+        )
+
+        # if the file does not exist
+        if asset_record is None:
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content={
+                    "signal": ResponseSignal.FILE_ID_ERROR.value,
+                }
+            )
+        # else return needed info about the asset
+        project_files_ids = {
+            asset_record.id: asset_record.asset_name
+        }
+    # 2. use project id to retrive all files/assets related to and process them
+    else:
+        
+        # get all asset relatted to this project
+        project_files = await asset_model.get_all_project_assets(
+            asset_project_id=project.id,
+            asset_type=AssetTypeEnum.FILE.value,
+        )
+
+        project_files_ids = {
+            record.id: record.asset_name
+            for record in project_files
+        }
+
+    # in case no files returned from the above 2 senarioes
+    if len(project_files_ids) == 0:
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
             content={
-                "signal": ResponseSignal.PROCESSING_FAILED.value
+                "signal": ResponseSignal.NO_FILES_ERROR.value,
             }
         )
     
-    # prepare chunks to insert then in db
-    file_chunks_records = [
-        DataChunk(
-            chunk_text=chunk.page_content,
-            chunk_metadata=chunk.metadata,
-            chunk_order=i+1,
-            chunk_project_id=project.id,
-        )
-        for i, chunk in enumerate(file_chunks)
-    ]
 
-    chunk_model = ChunkModel(
-        db_client=request.app.db_client
-    )
+    # start processing the file 
+    process_controller = ProcessController(project_id=project_id)
 
+
+    # no of processed chunks and files
+    no_records = 0
+    no_files = 0
+
+    chunk_model = await ChunkModel.create_instance(
+                        db_client=request.app.db_client
+                    )
+    
     # in case you want to clean the chunks for this project in the db first then insert new one
     if do_reset == 1:
         _ = await chunk_model.delete_chunks_by_project_id(
             project_id=project.id
         )
 
-    # inset chunks as bulk
-    no_records = await chunk_model.insert_many_chunks(chunks=file_chunks_records)
+    for asset_id, file_id in project_files_ids.items():
+
+
+        # get file content
+        file_content = process_controller.get_file_content(file_id=file_id)
+
+        # if no file exist
+        if file_content is None:
+            logger.error(f"Error while processing file: {file_id}")
+            continue # dont stop the app, skip the rest of this iteration and move to the next iteration/file
+
+        # process the file (spilt to chunks)
+        file_chunks = process_controller.process_file_content(
+            file_content=file_content,
+            file_id=file_id,
+            chunk_size=chunk_size,
+            overlap_size=overlap_size
+        )
+
+        # in case the chunking process is faild
+        if file_chunks is None or len(file_chunks) == 0:
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content={
+                    "signal": ResponseSignal.PROCESSING_FAILED.value
+                }
+            )
+        
+        # prepare chunks to insert then in db
+        file_chunks_records = [
+            DataChunk(
+                chunk_text=chunk.page_content,
+                chunk_metadata=chunk.metadata,
+                chunk_order=i+1,
+                chunk_project_id=project.id,
+                chunk_asset_id=asset_id
+            )
+            for i, chunk in enumerate(file_chunks)
+        ]
+
+
+        # inset chunks as bulk
+        no_records += await chunk_model.insert_many_chunks(chunks=file_chunks_records)
+        no_files += 1
 
     return JSONResponse(
         content={
             "signal": ResponseSignal.PROCESSING_SUCCESS.value,
-            "inserted_chunks": no_records
+            "inserted_chunks": no_records,
+            "processed_files": no_files
         }
     )
