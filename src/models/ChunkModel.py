@@ -10,12 +10,40 @@ class ChunkModel(BaseDataModel):
         super().__init__(db_client=db_client)
         self.collection = self.db_client[DataBaseEnum.COLLECTION_CHUNK_NAME.value]
 
+    @classmethod
+    async def create_instance(cls, db_client: object):
+        """Static Function (called without instant, using class name) used create an instance
+          instead of regular "__init__" because we need to call the function that create the index
+          in the creation instant but its async and could not called inside not async function __init__
+           Note: can not convert __init__ to async
+           Note: Now the creation of instance from this class in the main file would be using this fuction 
+            instead of __init__ """
+        instance = cls(db_client) # this function create instance from this class (this line call (__init__)
+        await instance.init_collection() # call create index function for the collection
+        return instance # return an instance from this class after initiated the needed collection and its index
+
+    async def init_collection(self):
+        """Function to create an index for the collection"""
+
+        all_collections = await self.db_client.list_collection_names()
+        # would be true only first time got a request from any one (in the begining of using the aplication)
+        if DataBaseEnum.COLLECTION_CHUNK_NAME.value not in all_collections:
+            self.collection = self.db_client[DataBaseEnum.COLLECTION_CHUNK_NAME.value]
+            indexes = DataChunk.get_indexes() # get defined indexes
+            for index in indexes:
+                await self.collection.create_index(
+                    index["key"],
+                    name=index["name"],
+                    unique=index["unique"]
+                )
+
+
     # all these functions should be async to avoid blocking
     async def create_chunk(self, chunk: DataChunk):
         """Function to insert new chunk in the db giving a datachunk object"""
         # by_alias=True => to us _id instead of id aince the mangodb need it in this way
         result = await self.collection.insert_one(chunk.dict(by_alias=True, exclude_unset=True))
-        chunk._id = result.inserted_id
+        chunk.id = result.inserted_id
         return chunk
 
     async def get_chunk(self, chunk_id: str):
