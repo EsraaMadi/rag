@@ -10,10 +10,19 @@ class BaseController:
         self.app_settings = get_settings()
         
         self.base_dir = os.path.dirname( os.path.dirname(__file__) )
+
+        # prepare location to store files
         self.files_dir = os.path.join(
             self.base_dir,
             "assets/files"
         )
+
+        # prepare location to store vector database
+        self.database_dir = os.path.join(
+            self.base_dir,
+            "assets/database"
+        )
         
     def generate_random_string(self, length: int=12):
         return ''.join(random.choices(string.ascii_lowercase + string.digits, k=length))
+
