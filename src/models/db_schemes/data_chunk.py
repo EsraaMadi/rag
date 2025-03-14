@@ -26,3 +26,15 @@ class DataChunk(BaseModel):
                 "unique": False # could be repeated
             }
         ]
+class RetrievedDocument(BaseModel):
+    """
+    Represents a document retrieved from a search or retrieval system 
+    (representation for data chunks but after embedding->indexing in vectordb-> retrived)
+
+    Attributes:
+        text (str): The content of the retrieved document.
+        score (float): The relevance score of the document, typically determined
+                       by the retrieval model or algorithm.
+    """
+    text: str  # The content of the retrieved document
+    score: float  # The relevance score of the document
