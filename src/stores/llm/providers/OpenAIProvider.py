@@ -5,13 +5,13 @@ import logging
 
 class OpenAIProvider(LLMInterface):
     """Class for Open AI model (generation or embedding)"""
-    def __init__(self, api_key: str, api_url: str=None,
+    def __init__(self, api_key: str, base_url: str=None,
                        default_input_max_characters: int=1000,
                        default_generation_max_output_tokens: int=1000,
                        default_generation_temperature: float=0.1):
         """Function to set needed paramter for open AI model and initiate a client for the model"""
         self.api_key = api_key
-        self.api_url = api_url
+        self.base_url = base_url
 
         self.default_input_max_characters = default_input_max_characters
         self.default_generation_max_output_tokens = default_generation_max_output_tokens
@@ -24,9 +24,11 @@ class OpenAIProvider(LLMInterface):
         self.embedding_model_id = None
         self.embedding_size = None
 
+
         self.client = OpenAI(
-            api_key = self.api_key,
-            base_url = self.api_url if self.api_url and len(self.api_url) else None
+            base_url = self.base_url if self.base_url and len(self.base_url) else None,
+            api_key = self.api_key
+            
         )
 
         self.enums = OpenAIEnums
