@@ -23,7 +23,7 @@ data_router = APIRouter(
 
 # main body of request
 @data_router.post("/upload/{project_id}")
-async def upload_data(request: Request,project_id: str, file: UploadFile,
+async def upload_data(request: Request,project_id: int, file: UploadFile,
                       app_settings: Settings = Depends(get_settings)):
 
     # create project object
@@ -77,7 +77,7 @@ async def upload_data(request: Request,project_id: str, file: UploadFile,
     )
 
     asset_resource = Asset(
-        asset_project_id=project.id,
+        asset_project_id=project.project_id,
         asset_type=AssetTypeEnum.FILE.value,
         asset_name=file_id,
         asset_size=os.path.getsize(file_path)
@@ -89,7 +89,7 @@ async def upload_data(request: Request,project_id: str, file: UploadFile,
     return JSONResponse(
             content={
                 "signal": ResponseSignal.FILE_UPLOAD_SUCCESS.value,
-                "file_id": str(asset_record.id),
+                "file_id": str(asset_record.asset_id),
             }
         )
 
@@ -97,7 +97,7 @@ async def upload_data(request: Request,project_id: str, file: UploadFile,
 
 @data_router.post("/process/{project_id}")
 async def process_endpoint(request: Request, 
-                           project_id: str, 
+                           project_id: int, 
                            process_request: ProcessRequest):
 
     # the request body with be json that has the same paramter defined in the  ProcessRequest class
@@ -133,7 +133,7 @@ async def process_endpoint(request: Request,
 
         # try to search for this file in the assets
         asset_record = await asset_model.get_asset_record(
-            asset_project_id=project.id,
+            asset_project_id=project.project_id,
             asset_name=process_request.file_id
         )
 
@@ -147,19 +147,19 @@ async def process_endpoint(request: Request,
             )
         # else return needed info about the asset
         project_files_ids = {
-            asset_record.id: asset_record.asset_name
+            asset_record.asset_project_id: asset_record.asset_name
         }
     # 2. use project id to retrive all files/assets related to and process them
     else:
         
         # get all asset relatted to this project
         project_files = await asset_model.get_all_project_assets(
-            asset_project_id=project.id,
+            asset_project_id=project.project_id,
             asset_type=AssetTypeEnum.FILE.value,
         )
 
         project_files_ids = {
-            record.id: record.asset_name
+            record.asset_id: record.asset_name
             for record in project_files
         }
 
@@ -188,7 +188,7 @@ async def process_endpoint(request: Request,
     # in case you want to clean the chunks for this project in the db first then insert new one
     if do_reset == 1:
         _ = await chunk_model.delete_chunks_by_project_id(
-            project_id=project.id
+            project_id=project.project_id
         )
 
     for asset_id, file_id in project_files_ids.items():
@@ -225,7 +225,7 @@ async def process_endpoint(request: Request,
                 chunk_text=chunk.page_content,
                 chunk_metadata=chunk.metadata,
                 chunk_order=i+1,
-                chunk_project_id=project.id,
+                chunk_project_id=project.project_id,
                 chunk_asset_id=asset_id
             )
             for i, chunk in enumerate(file_chunks)

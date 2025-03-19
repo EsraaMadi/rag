@@ -118,7 +118,7 @@ class OpenAIProvider(LLMInterface):
         """Function to build required prompt format for the model"""
         return {
             "role": role,
-            "content": self.process_text(prompt)
+            "content": prompt
         }
     
 

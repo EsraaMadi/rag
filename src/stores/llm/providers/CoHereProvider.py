@@ -113,5 +113,5 @@ class CoHereProvider(LLMInterface):
         """Function to build required prompt format for the model history"""
         return {
             "role": role,
-            "text": self.process_text(prompt)
+            "text": prompt
         }

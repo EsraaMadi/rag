@@ -1,13 +1,13 @@
 from .BaseDataModel import BaseDataModel
 from .db_schemes import Asset
 from .enums.DataBaseEnum import DataBaseEnum
-from bson import ObjectId
+from sqlalchemy.future import select
 
 class AssetModel(BaseDataModel):
 
     def __init__(self, db_client: object):
         super().__init__(db_client=db_client)
-        self.collection = self.db_client[DataBaseEnum.COLLECTION_ASSET_NAME.value]
+        self.db_client = db_client
 
     @classmethod
     async def create_instance(cls, db_client: object):
@@ -18,57 +18,75 @@ class AssetModel(BaseDataModel):
            Note: Now the creation of instance from this class in the main file would be using this fuction 
             instead of __init__ """
         instance = cls(db_client) # this function create instance from this class (this line call (__init__)
-        await instance.init_collection() # call create index function for the collection
         return instance # return an instance from this class after initiated the needed collection and its index
-
-    async def init_collection(self):
-        """Function to create an index for the collection"""
-
-        all_collections = await self.db_client.list_collection_names()
-        # would be true only first time got a request from any one (in the begining of using the aplication)
-        if DataBaseEnum.COLLECTION_ASSET_NAME.value not in all_collections:
-            self.collection = self.db_client[DataBaseEnum.COLLECTION_ASSET_NAME.value]
-            indexes = Asset.get_indexes() # get defined indexes
-            for index in indexes:
-                await self.collection.create_index(
-                    index["key"],
-                    name=index["name"],
-                    unique=index["unique"]
-                )
 
     # all these functions should be async to avoid blocking
     async def create_asset(self, asset: Asset):
-        """Function to insert new asset in the db giving an asset object"""
-        # by_alias=True => to us _id instead of id aince the mangodb need it in this way
-        result = await self.collection.insert_one(asset.dict(by_alias=True, exclude_unset=True))
-        asset.id = result.inserted_id
-
+        """
+        Function to insert new asset in the db giving an asset object.
+        
+        Args:
+            asset (Asset): The Asset object to be inserted
+            
+        Returns:
+            Asset: The inserted asset with any database-generated values
+        """
+        async with self.db_client() as session:
+            # Start a transaction
+            async with session.begin():
+                # Add the asset to the session
+                session.add(asset)
+            # Commit the transaction to persist changes
+            await session.commit()
+            # Refresh the object to get any database-generated values (like IDs)
+            await session.refresh(asset)
         return asset
 
     async def get_all_project_assets(self, asset_project_id: str, asset_type: str):
-        """Function to return all assets related to an project id """
-
-        records = await self.collection.find({
-            "asset_project_id": ObjectId(asset_project_id) if isinstance(asset_project_id, str) else asset_project_id,
-            "asset_type": asset_type,
-        }).to_list(length=None)
-
-        return [
-            Asset(**record)
-            for record in records
-        ]
+        """
+        Function to return all assets related to a project id filtered by asset type.
+        
+        Args:
+            asset_project_id (str): The project ID to fetch assets for
+            asset_type (str): The type of assets to filter by
+            
+        Returns:
+            list: List of Asset objects matching the criteria
+        """
+        async with self.db_client() as session:
+            # Create a SELECT statement with compound WHERE conditions
+            # Filtering by both project ID and asset type
+            stmt = select(Asset).where(
+                Asset.asset_project_id == asset_project_id,
+                Asset.asset_type == asset_type
+            )
+            # Execute the statement
+            result = await session.execute(stmt)
+            # Convert the result to a list of Asset objects
+            records = result.scalars().all()
+        return records
 
     async def get_asset_record(self, asset_project_id: str, asset_name: str):
-        """Function to return asset related by project id and name """
-        record = await self.collection.find_one({
-            "asset_project_id": ObjectId(asset_project_id) if isinstance(asset_project_id, str) else asset_project_id,
-            "asset_name": asset_name,
-        }) # it return one asset becase (project id, asset name) is unique
-
-        if record:
-            return Asset(**record)
+        """
+        Function to return a single asset identified by project id and asset name.
         
-        return None
-
-
-    
+        Args:
+            asset_project_id (str): The project ID to fetch the asset from
+            asset_name (str): The name of the asset to retrieve
+            
+        Returns:
+            Asset: The matching asset or None if not found
+        """
+        async with self.db_client() as session:
+            # Create a SELECT statement with compound WHERE conditions
+            # Using both project ID and asset name to uniquely identify the asset
+            stmt = select(Asset).where(
+                Asset.asset_project_id == asset_project_id,
+                Asset.asset_name == asset_name
+            )
+            # Execute the statement
+            result = await session.execute(stmt)
+            # Get exactly one result or None if not found
+            # scalar_one_or_none() will raise an exception if multiple records are found
+            record = result.scalar_one_or_none()
+        return record
