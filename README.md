@@ -7,7 +7,7 @@
 
 ## Installation
 
-### Install the required packages
+### 1. Install the required packages
 
 ```bash
 $ uv venv
@@ -15,35 +15,31 @@ $ source .venv/bin/activate
 $ uv sync
 ```
 
-### Setup the environment variables
+### 2. Setup the environment variables
 
 ```bash
 $ cp .env.example .env
 ```
-Then set your environment variables in the `.env` file. Like `OPENAI_API_KEY` value.
+Then set your environment variables in the `.env` file. Like `OPENAI_API_KEY` value and others.
 
-## Run Docker Compose Services, later would move tp make file
+### 3. Run Docker Compose Services, later would move tp make file
 
 ```bash
 $ cd docker
 $ cp .env.example .env
 ```
-
-- update `.env` with your credentials
-
-
-
+Then set your credential for postgre database.
+Run docker containers:
 ```bash
-$ cd docker
 $ sudo docker compose up -d
 ```
 
-## Run the FastAPI server localy
+### 4.Run the FastAPI server localy
 
 ```bash
-$ uv -- uvicorn main:app --reload --host 0.0.0.0 --port 5000
+$ uv run -- uvicorn main:app --reload --host 0.0.0.0 --port 5000
 ```
 
 ## POSTMAN Collection
 
-Download the POSTMAN collection from 
+Note: Yo can Find the POSTMAN collection for developed APIs in `assets` folder

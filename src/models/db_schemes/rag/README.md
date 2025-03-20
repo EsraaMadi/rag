@@ -11,23 +11,26 @@ Alembic uses a simple CLI interface and Python-based migration scripts. Each mig
 Without a migration tool like Alembic, you'd have to manually track and apply schema changes, which becomes increasingly difficult as your application evolves.
 
 ### Configration:
-1. Navigate in terminal inside models folder
+1. Navigate in terminal inside `/src/models/db_schemes/rag`
+- Run (Optional)
 ```bash
 alembic init alembic
 ```
-Note: - This command would create 1. a folder called `Alembic` under models folder, 2. alembic.ini file
-- if you clone this repo the folder would be exist, you just need to take compy from alembic.ini.example file to create your onw version of alembic.ini
-
+Note: - This command would create 2 things:
+- a folder called `Alembic` under this folder
+- `alembic.ini` file
+If you cloned this repo the folder would be exist, you just need to take copy from alembic.ini.example file to create your onw version of `alembic.ini` using
 ```bash
 cp alembic.ini.example alembic.ini
 ```
-2. Update the `alembic.ini` with your database credentials (`sqlalchemy.url`)
+2. Update the `alembic.ini` with your database string connection in variable called(`sqlalchemy.url`)
 
-3. add base file for models in the `models/db_schemes/rag/alembic/env.py`
+3. Do some modification on the file `models/db_schemes/rag/alembic/env.py`:
+- Add the base module for your schema as:
 ```python
 from schemes import SQLAlchemyBase
 ```
-assign value to `target_metadat`
+- Assign value to `target_metadat` as
 ```python
 target_metadata = SQLAlchemyBase.metadata
 ```
@@ -37,8 +40,9 @@ target_metadata = SQLAlchemyBase.metadata
 ```bash
 alembic revision --autogenerate -m "Add ..."
 ```
+Note: already there is a created version on the cloned repo
 
-### Upgrade the database
+5. Upgrade the database with created version using:
 
 ```bash
 alembic upgrade head
