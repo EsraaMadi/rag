@@ -41,7 +41,7 @@ $ sudo docker compose up -d
 ## Run the FastAPI server localy
 
 ```bash
-$ uv -- uvicorn main:app --reload --host 0.0.0.0 --port 5000
+$ uv run --uvicorn main:app --reload --host 0.0.0.0 --port 5000
 ```
 
 ## POSTMAN Collection

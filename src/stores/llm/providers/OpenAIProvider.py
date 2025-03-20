@@ -5,7 +5,7 @@ import logging
 
 class OpenAIProvider(LLMInterface):
     """Class for Open AI model (generation or embedding)"""
-    def __init__(self, api_key: str, base_url: str=None,
+    def __init__(self, api_key: str, base_url: str,
                        default_input_max_characters: int=1000,
                        default_generation_max_output_tokens: int=1000,
                        default_generation_temperature: float=0.1):
@@ -118,7 +118,7 @@ class OpenAIProvider(LLMInterface):
         """Function to build required prompt format for the model"""
         return {
             "role": role,
-            "content": self.process_text(prompt)
+            "content": prompt
         }
     
 
