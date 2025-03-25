@@ -1,8 +1,7 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-# BaseSettings: Base class for settings, allowing values to be overridden by environment variables.
 
 class Settings(BaseSettings):
-
+    """BaseSettings: Base class for settings, allowing values to be overridden by environment variables."""
     APP_NAME: str
     APP_VERSION: str
     OPENAI_API_KEY: str

@@ -5,6 +5,6 @@ class VectorDBEnums(Enum):
     QDRANT = "QDRANT"
 
 class DistanceMethodEnums(Enum):
-    """ Enumeration for distance calculation methods used in vector similarity searches """
+    """ Enumeration for distance calculation methods used in Qudrant vector similarity searches """
     COSINE = "cosine"
     DOT = "dot"
